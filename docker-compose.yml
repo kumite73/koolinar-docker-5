@@ -1,0 +1,67 @@
+version: "2.0"
+
+services:
+  elasticsearch:
+    image: elasticsearch:2.4.6
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node  
+      - ELASTIC_PASSWORD=MyPwd1234
+    networks:
+      - koolinar5
+    volumes:
+      - D:/_Projects/koolinar_docker/data/elasticsearch/data:/usr/share/elasticsearch/data/elasticsearch
+
+  redis:
+    container_name: redis
+    image: redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - D:/_Projects/koolinar_docker/data/redis:/data
+    restart: always    
+    networks:
+      - koolinar5
+
+  db:
+    image: postgres:9.6.9
+    environment:
+      - POSTGRES_PASSWORD=Dev12345
+      - POSTGRES_DB=koolinar_development
+      - POSTGRES_USER=koolinar
+    ports:
+      - "5432:5432"
+    networks:
+      - koolinar5
+    volumes:
+      - gitlab-postgresql-volume:/var/lib/postgresql/data
+      - D:/_Projects/koolinar_docker/backups:/home/backup
+  web:
+    image: kumite73/ror3
+    ports:
+      - "3000:3000"
+    networks:
+      - koolinar5
+    volumes:
+      - D:/_Projects/koolinar:/app
+    depends_on:
+      - db
+      - redis
+      - elasticsearch
+    environment:
+      RAILS_ENV: development 
+    entrypoint: sh -c '/bin/wait-for db:5432 -- puma -C "-" -b tcp://0.0.0.0:3000'
+
+networks:
+  koolinar5:
+    driver: bridge
+
+volumes:
+  gitlab-postgresql-volume:
+    external: true
+  redis-volume:
+    external: true
+
